@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.llm.provider import get_provider
 
 router = APIRouter(tags=["health"])
 settings = get_settings()
@@ -24,4 +25,15 @@ def health_deps(db: Session = Depends(get_db)) -> dict:
     except Exception as exc:
         database = f"error: {type(exc).__name__}"
 
-    return {"database": database, "llm_provider": settings.llm_provider}
+    try:
+        get_provider()
+        llm = "configured"
+    except Exception as exc:
+        llm = f"unconfigured: {exc}"
+
+    return {
+        "database": database,
+        "llm_provider": settings.llm_provider,
+        "llm_status": llm,
+        "degraded_mode_available": True,
+    }

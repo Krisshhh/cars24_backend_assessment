@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operations Copilot</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --surface: #ffffff;
+    --ink: #16191d;
+    --muted: #5d6873;
+    --line: #d3d9df;
+    --critical: #a8201a;
+    --warning: #8a5a00;
+    --info: #1f4e79;
+    --focus: #1f4e79;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 20px 72px;
+  }
+
+  header { margin-bottom: 22px; }
+
+  h1 {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+  }
+
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13.5px;
+    max-width: 62ch;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+
+  .composer { padding: 14px; }
+
+  textarea {
+    width: 100%;
+    min-height: 76px;
+    resize: vertical;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 10px 11px;
+    font: inherit;
+    color: inherit;
+    background: #fcfdfe;
+  }
+
+  textarea:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .composer-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: #f6f8f9;
+    color: var(--ink);
+    padding: 6px 11px;
+  }
+
+  button:hover:not(:disabled) { background: #eaeef1; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .send {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+    padding: 7px 16px;
+    font-weight: 500;
+  }
+
+  .send:hover:not(:disabled) { background: #2a2f36; }
+
+  .hint {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-left: auto;
+  }
+
+  .presets {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .presets button {
+    font-size: 13px;
+    padding: 5px 10px;
+    text-align: left;
+  }
+
+  .presets .ref {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+
+  #result { margin-top: 20px; }
+  #result:empty { display: none; }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .badge {
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 11.5px;
+    font-family: var(--sans);
+    font-weight: 500;
+  }
+
+  .badge.live { color: #1d6b3f; }
+  .badge.degraded { color: var(--info); }
+
+  .answer {
+    padding: 15px 16px;
+    white-space: pre-wrap;
+    max-width: 74ch;
+  }
+
+  .degraded-note {
+    margin: 14px 14px 4px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--info);
+    background: #f2f6fa;
+    font-size: 13.5px;
+    color: #234;
+    max-width: 72ch;
+  }
+
+  .findings {
+    border-top: 1px solid var(--line);
+    padding: 14px 16px 4px;
+  }
+
+  .findings h2 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--muted);
+  }
+
+  .finding {
+    border-left: 3px solid var(--line);
+    padding: 0 0 0 12px;
+    margin-bottom: 16px;
+  }
+
+  .finding[data-sev="CRITICAL"] { border-left-color: var(--critical); border-left-width: 4px; }
+  .finding[data-sev="WARNING"] { border-left-color: var(--warning); }
+  .finding[data-sev="INFO"] { border-left-color: var(--info); }
+
+  .finding-head {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    flex-wrap: wrap;
+  }
+
+  .sev {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .finding[data-sev="CRITICAL"] .sev { color: var(--critical); }
+  .finding[data-sev="WARNING"] .sev { color: var(--warning); }
+  .finding[data-sev="INFO"] .sev { color: var(--info); }
+
+  .code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .finding h3 {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 3px 0 5px;
+    max-width: 68ch;
+  }
+
+  .finding p {
+    margin: 0 0 8px;
+    max-width: 72ch;
+    font-size: 14px;
+  }
+
+  .action {
+    font-size: 13.5px;
+    color: #234;
+    background: #f4f6f8;
+    border-radius: 2px;
+    padding: 7px 10px;
+    max-width: 72ch;
+  }
+
+  .action b { font-weight: 600; }
+
+  .ledger {
+    margin-top: 9px;
+    border-top: 1px dotted var(--line);
+    padding-top: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #3b444d;
+  }
+
+  .ledger-row {
+    display: flex;
+    gap: 10px;
+    padding: 2px 0;
+    flex-wrap: wrap;
+  }
+
+  .ledger-row .src { color: var(--muted); min-width: 15ch; }
+  .ledger-row .val { font-weight: 600; }
+  .ledger-row .at { color: var(--muted); margin-left: auto; }
+
+  details {
+    border-top: 1px solid var(--line);
+    padding: 10px 16px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #f6f8f9;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 10px;
+    overflow-x: auto;
+    margin: 9px 0 2px;
+    max-height: 340px;
+  }
+
+  table.tools {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-top: 9px;
+  }
+
+  table.tools th,
+  table.tools td {
+    text-align: left;
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  table.tools th { color: var(--muted); font-weight: 500; }
+  td.fail { color: var(--critical); }
+
+  .status {
+    padding: 14px 16px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .error {
+    border-left: 3px solid var(--critical);
+    padding: 12px 14px;
+    background: #fdf4f3;
+  }
+
+  .error strong { display: block; margin-bottom: 3px; color: var(--critical); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  @media (max-width: 620px) {
+    .ledger-row .at { margin-left: 0; width: 100%; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Operations Copilot</h1>
+    <p>Ask about an order in plain language. Every answer shows the records it was built from, so you can check it before you act on it.</p>
+  </header>
+
+  <div class="panel composer">
+    <label for="q" class="visually-hidden" style="position:absolute;left:-9999px">Your question</label>
+    <textarea id="q" placeholder="Customer says they've paid for order #1289 but delivery isn't scheduled - what's going on?"></textarea>
+    <div class="composer-foot">
+      <button class="send" id="send">Ask</button>
+      <button id="clear" type="button">Clear</button>
+      <span class="hint">Ctrl + Enter to send</span>
+    </div>
+    <ul class="presets" id="presets"></ul>
+  </div>
+
+  <div id="result" aria-live="polite"></div>
+</div>
+
+<script>
+const PRESETS = [
+  { ref: "4521", label: "Payment status, healthy order", q: "What's the payment status for order #4521?" },
+  { ref: "1289", label: "Paid but no delivery", q: "Customer says they've paid for order #1289 but delivery isn't scheduled - what's going on?" },
+  { ref: "2231", label: "Full status summary", q: "Give me a full status summary for order #2231" },
+  { ref: "3310", label: "Stuck after payment", q: "Why hasn't order #3310 been delivered yet?" },
+  { ref: "7742", label: "Customer disputes amount", q: "Customer of order #7742 insists they paid in full. Did they?" },
+  { ref: "5108", label: "Charged twice", q: "Was the customer on order #5108 charged more than once?" }
+];
+
+const $q = document.getElementById("q");
+const $send = document.getElementById("send");
+const $out = document.getElementById("result");
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const ist = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  return d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) + " IST";
+};
+
+const presetList = document.getElementById("presets");
+PRESETS.forEach((p) => {
+  const li = document.createElement("li");
+  const b = document.createElement("button");
+  b.type = "button";
+  b.innerHTML = `<span class="ref">#${esc(p.ref)}</span>${esc(p.label)}`;
+  b.addEventListener("click", () => { $q.value = p.q; ask(); });
+  li.appendChild(b);
+  presetList.appendChild(li);
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  $q.value = "";
+  $out.innerHTML = "";
+  $q.focus();
+});
+
+$send.addEventListener("click", ask);
+$q.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
+});
+
+function renderLedger(evidence) {
+  if (!evidence || !evidence.length) return "";
+  const rows = evidence.map((e) => `
+    <div class="ledger-row">
+      <span class="src">${esc(e.source)}</span>
+      <span>${esc(e.field)} =</span>
+      <span class="val">${esc(e.value)}</span>
+      <span class="at">${esc(ist(e.observed_at))}</span>
+    </div>`).join("");
+  return `<div class="ledger">${rows}</div>`;
+}
+
+function renderFindings(list) {
+  if (!list || !list.length) return "";
+  const items = list.map((d) => `
+    <div class="finding" data-sev="${esc(d.severity)}">
+      <div class="finding-head">
+        <span class="sev">${esc(d.severity)}</span>
+        <span class="code">${esc(d.code)}</span>
+      </div>
+      <h3>${esc(d.title)}</h3>
+      <p>${esc(d.detail)}</p>
+      <div class="action"><b>Do this:</b> ${esc(d.suggested_action)}</div>
+      ${renderLedger(d.evidence)}
+    </div>`).join("");
+  return `<div class="findings"><h2>What the reconciliation engine found</h2>${items}</div>`;
+}
+
+function renderTools(tools) {
+  if (!tools || !tools.length) {
+    return `<p class="code" style="margin:9px 0 2px">No tools were called on this request.</p>`;
+  }
+  const rows = tools.map((t) => `
+    <tr>
+      <td>${esc(t.name)}</td>
+      <td>${esc(JSON.stringify(t.arguments))}</td>
+      <td>${esc(t.latency_ms)} ms</td>
+      <td class="${t.ok ? "" : "fail"}">${t.ok ? "ok" : esc(t.error || "failed")}</td>
+    </tr>`).join("");
+  return `<table class="tools">
+    <thead><tr><th>Tool</th><th>Arguments</th><th>Time</th><th>Result</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function render(data) {
+  const badge = data.degraded
+    ? `<span class="badge degraded">deterministic engine only</span>`
+    : `<span class="badge live">model answered</span>`;
+
+  const orders = data.order_ids_resolved && data.order_ids_resolved.length
+    ? data.order_ids_resolved.map((o) => "#" + o).join(" ")
+    : "no order resolved";
+
+  const findings = renderFindings(data.discrepancies);
+  const suppressProse = data.degraded && findings !== "";
+
+  const degradedNote = data.degraded
+    ? `<div class="degraded-note">The language model is unavailable, so this comes straight from the reconciliation engine. The findings are exactly as accurate as usual, they just haven't been written up in prose.</div>`
+    : "";
+
+  const prose = suppressProse ? "" : `<div class="answer">${esc(data.answer)}</div>`;
+
+  $out.innerHTML = `
+    <div class="panel">
+      <div class="meta">
+        ${badge}
+        <span>${esc(orders)}</span>
+        <span>${esc(data.latency_ms)} ms</span>
+        <span>${esc(data.iterations)} model turn${data.iterations === 1 ? "" : "s"}</span>
+        <span>${esc(data.request_id)}</span>
+      </div>
+      ${degradedNote}
+      ${prose}
+      ${findings}
+      <details>
+        <summary>Tools called (${(data.tools_called || []).length})</summary>
+        ${renderTools(data.tools_called)}
+      </details>
+      <details>
+        <summary>Records this answer rests on (${(data.facts_used || []).length})</summary>
+        <pre>${esc((data.facts_used || []).join("\n") || "none")}</pre>
+      </details>
+      <details>
+        <summary>Raw response</summary>
+        <pre>${esc(JSON.stringify(data, null, 2))}</pre>
+      </details>
+    </div>`;
+}
+
+function showError(title, body) {
+  $out.innerHTML = `<div class="panel error"><strong>${esc(title)}</strong>${esc(body)}</div>`;
+}
+
+async function ask() {
+  const query = $q.value.trim();
+  if (!query) { $q.focus(); return; }
+
+  $send.disabled = true;
+  $out.innerHTML = `<div class="panel status">Checking the order records...</div>`;
+
+  try {
+    const res = await fetch("/query", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query })
+    });
+
+    if (res.status === 429) {
+      const wait = res.headers.get("retry-after") || "60";
+      showError("Too many requests", `The rate limit is ${res.headers.get("x-ratelimit-limit") || "20"} requests per minute. Try again in ${wait} seconds.`);
+      return;
+    }
+
+    if (res.status === 422) {
+      showError("That question can't be sent", "Enter a question between 1 and 2000 characters.");
+      return;
+    }
+
+    if (!res.ok) {
+      showError(`Request failed (${res.status})`, "The service returned an error. Check the API logs for the request id.");
+      return;
+    }
+
+    render(await res.json());
+  } catch (err) {
+    showError("Can't reach the service", "The API isn't responding. Confirm it's running on this host and try again.");
+  } finally {
+    $send.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

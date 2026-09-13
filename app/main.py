@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.config import get_settings
 from app.db import engine
@@ -21,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Operations Copilot",
-    version="0.3.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -31,3 +33,10 @@ register_exception_handlers(app)
 app.include_router(health.router)
 app.include_router(orders.router)
 app.include_router(query.router)
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def console() -> FileResponse:
+    return FileResponse(STATIC_DIR / "index.html", media_type="text/html")

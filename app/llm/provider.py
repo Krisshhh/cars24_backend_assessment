@@ -41,7 +41,15 @@ class LLMProvider(Protocol):
 
 class AnthropicProvider:
     def __init__(self, api_key: str, model: str, timeout: int) -> None:
-        import anthropic
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise ProviderError(
+                "anthropic package is not installed, run pip install -r requirements.txt"
+            ) from exc
+
+        if not api_key or api_key == "sk-ant-replace-me":
+            raise ProviderError("ANTHROPIC_API_KEY is not configured")
 
         self._client = anthropic.Anthropic(api_key=api_key, timeout=timeout)
         self._model = model
@@ -90,7 +98,15 @@ class AnthropicProvider:
 
 class OpenAIProvider:
     def __init__(self, api_key: str, model: str, timeout: int) -> None:
-        import openai
+        try:
+            import openai
+        except ImportError as exc:
+            raise ProviderError(
+                "openai package is not installed, run pip install -r requirements.txt"
+            ) from exc
+
+        if not api_key or api_key == "sk-proj-replace-me":
+            raise ProviderError("OPENAI_API_KEY is not configured")
 
         self._client = openai.OpenAI(api_key=api_key, timeout=timeout)
         self._model = model
@@ -194,18 +210,27 @@ class OpenAIProvider:
 def get_provider() -> LLMProvider:
     settings = get_settings()
 
-    if settings.llm_provider == "anthropic":
-        if not settings.anthropic_api_key:
-            raise ProviderError("ANTHROPIC_API_KEY is not set")
-        return AnthropicProvider(
-            settings.anthropic_api_key, settings.llm_model, settings.llm_timeout_seconds
-        )
+    try:
+        if settings.llm_provider == "anthropic":
+            if not settings.anthropic_api_key:
+                raise ProviderError("ANTHROPIC_API_KEY is not set")
+            return AnthropicProvider(
+                settings.anthropic_api_key,
+                settings.llm_model,
+                settings.llm_timeout_seconds,
+            )
 
-    if settings.llm_provider == "openai":
-        if not settings.openai_api_key:
-            raise ProviderError("OPENAI_API_KEY is not set")
-        return OpenAIProvider(
-            settings.openai_api_key, settings.llm_model, settings.llm_timeout_seconds
-        )
+        if settings.llm_provider == "openai":
+            if not settings.openai_api_key:
+                raise ProviderError("OPENAI_API_KEY is not set")
+            return OpenAIProvider(
+                settings.openai_api_key, settings.llm_model, settings.llm_timeout_seconds
+            )
+    except ProviderError:
+        raise
+    except Exception as exc:
+        raise ProviderError(
+            f"{settings.llm_provider} provider could not be initialised: {exc}"
+        ) from exc
 
     raise ProviderError(f"Unknown LLM_PROVIDER: {settings.llm_provider}")

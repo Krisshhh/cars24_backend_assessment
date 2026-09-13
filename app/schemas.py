@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EvidenceOut(BaseModel):
@@ -98,7 +99,25 @@ class DiagnosisOut(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
-    conversation_id: str | None = None
+    conversation_id: str | None = Field(default=None, max_length=64)
+
+    @field_validator("query")
+    @classmethod
+    def strip_control_characters(cls, value: str) -> str:
+        cleaned = "".join(ch for ch in value if ch == "\n" or ch == "\t" or ord(ch) >= 32)
+        cleaned = cleaned.strip()
+        if not cleaned:
+            raise ValueError("query must contain visible characters")
+        return cleaned
+
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", value):
+            raise ValueError("conversation_id must be alphanumeric with - _ . : only")
+        return value
 
 
 class ToolInvocationOut(BaseModel):

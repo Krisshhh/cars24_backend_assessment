@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     llm_model: str = "claude-sonnet-4-6"
     llm_timeout_seconds: int = 30
     max_tool_iterations: int = 3
+    rate_limit_per_window: int = 20
+    rate_limit_window_seconds: int = 60
+    conversation_ttl_seconds: int = 1800
+    conversation_max_messages: int = 8
     app_env: str = "local"
     log_level: str = "INFO"
 
