@@ -97,7 +97,13 @@ class AnthropicProvider:
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str, model: str, timeout: int) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout: int,
+        base_url: str | None = None,
+    ) -> None:
         try:
             import openai
         except ImportError as exc:
@@ -105,10 +111,14 @@ class OpenAIProvider:
                 "openai package is not installed, run pip install -r requirements.txt"
             ) from exc
 
-        if not api_key or api_key == "sk-proj-replace-me":
-            raise ProviderError("OPENAI_API_KEY is not configured")
+        if not api_key or api_key == "sk-proj-replace-me" or api_key.startswith("AIzaSy-replace"):
+            raise ProviderError("API key is not configured")
 
-        self._client = openai.OpenAI(api_key=api_key, timeout=timeout)
+        kwargs: dict[str, Any] = {"api_key": api_key, "timeout": timeout}
+        if base_url:
+            kwargs["base_url"] = base_url
+
+        self._client = openai.OpenAI(**kwargs)
         self._model = model
 
     @staticmethod
@@ -118,6 +128,11 @@ class OpenAIProvider:
             converted.append({"role": "system", "content": system})
 
         for message in messages:
+            if message.get("raw") is not None and hasattr(message["raw"], "choices"):
+                choice = message["raw"].choices[0]
+                converted.append(choice.message.model_dump(exclude_unset=True))
+                continue
+
             content = message["content"]
             if isinstance(content, str):
                 converted.append({"role": message["role"], "content": content})
@@ -225,6 +240,23 @@ def get_provider() -> LLMProvider:
                 raise ProviderError("OPENAI_API_KEY is not set")
             return OpenAIProvider(
                 settings.openai_api_key, settings.llm_model, settings.llm_timeout_seconds
+            )
+
+        if settings.llm_provider == "gemini":
+            key = settings.gemini_api_key or settings.openai_api_key
+            if not key:
+                raise ProviderError("GEMINI_API_KEY is not set")
+            model = (
+                settings.llm_model
+                if "gemini" in settings.llm_model and settings.llm_model != "gemini-1.5-flash"
+                else "gemini-flash-latest"
+            )
+            base_url = (
+                settings.llm_base_url
+                or "https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+            return OpenAIProvider(
+                key, model, settings.llm_timeout_seconds, base_url=base_url
             )
     except ProviderError:
         raise

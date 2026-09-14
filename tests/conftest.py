@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+import pytest
+
 from app.rules.types import (
     CustomerView,
     DeliveryView,
@@ -13,6 +15,18 @@ from app.rules.types import (
 )
 
 NOW = datetime(2026, 9, 13, 12, 0, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_test_environment(monkeypatch):
+    from app.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "llm_provider", "anthropic")
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "gemini_api_key", "")
+
 
 CUSTOMER = CustomerView(
     id=1, name="Test Customer", phone="+919800000001", email="t@example.com", city="Pune"

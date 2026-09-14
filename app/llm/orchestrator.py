@@ -141,7 +141,9 @@ def answer_query(
                     "input": call.arguments,
                 }
             )
-        messages.append({"role": "assistant", "content": assistant_blocks})
+        messages.append(
+            {"role": "assistant", "content": assistant_blocks, "raw": response.raw}
+        )
 
         result_blocks: list[dict] = []
         for call in response.tool_calls:

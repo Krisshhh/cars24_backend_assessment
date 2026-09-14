@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     llm_provider: str = "anthropic"
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    gemini_api_key: str = ""
+    llm_base_url: str | None = None
     llm_model: str = "claude-sonnet-4-6"
     llm_timeout_seconds: int = 30
     max_tool_iterations: int = 3
